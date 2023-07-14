@@ -1,6 +1,22 @@
 const router = require("express").Router();
 const {User,validate} = require("../models/user");
 const bcrypt = require("bcrypt");
+const jwt = require("jsonwebtoken");
+const joi = require("joi");
+
+//get own information
+router.get("/profile", (req,res) => {
+  const token = req.headers.authorization;
+  //console.log("get :"+token);
+  if (token) {
+    jwt.verify(token,process.env.JWTPRIVATEKEY,{},(err, userData) => {
+      if (err)throw err;
+      res.status(200).send(userData);
+    });
+  } else {
+    res.status(401).json('no token');
+  }
+});
 
 //get a user
 router.get("/", async (req, res) => {
@@ -31,7 +47,7 @@ router.get('/usersList', async (req, res) => {
   res.send(userMap);
   
   });
-
+//Create new User
 router.post("/",async(req,res)=>{
     try{
         const {error} = validate(req.body);
@@ -51,6 +67,27 @@ router.post("/",async(req,res)=>{
     }
 });
 
+//update User information
+router.put("/:id",async(req, res)=>{
+  //console.log("user :" + req.body.userId);
+ // console.log("id :" + req.params.id);
+  if (req.body.userId === req.params.id) {
+    try{
+    const user = await User.findByIdAndUpdate(req.params.id, {
+      username : req.body.username
+    });
+    const updateduser=await User.findById(user._id);
+    //console.log(updateduser);
+      const update_token = updateduser.generateAuthToken();
+     // console.log("send :"+update_token);
+      res.status(200).send({data:update_token,message:"User updated in successfully"})
+    }catch(err){
+      res.status(500).json(err);
+    }
+  }else{
+    return res.status(403).json("You can update only your account!");
+  }
+})
 
 
 module.exports = router;
